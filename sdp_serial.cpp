@@ -1,11 +1,12 @@
 #include <iostream>
 #include <cmath>
 #include <limits>
+#include <chrono>
 
 using namespace std;
 
 void transpose(float**** matrix, float**** matrix_transposed, int batch_size, int num_heads, int rows, int cols) {
-    cout << "Transposing matrices with rows: " << rows << ", cols: " << cols << endl;
+    // cout << "Transposing matrices with rows: " << rows << ", cols: " << cols << endl;
     for (int b = 0; b < batch_size; ++b) {
         for (int h = 0; h < num_heads; ++h) {
             for (int i = 0; i < rows; ++i) {
@@ -18,15 +19,15 @@ void transpose(float**** matrix, float**** matrix_transposed, int batch_size, in
             }
         }
     }
-    cout << "Transpose completed successfully." << endl;
+    // cout << "Transpose completed successfully." << endl;
 }
 
 void matrix_multiply(float**** A, float**** B, float**** C, int batch_size, int num_heads, int rows, int cols, int inner_dim) {
-    cout << rows << " " << cols << " " << inner_dim << endl;
+    // cout << rows << " " << cols << " " << inner_dim << endl;
     for (int b = 0; b < batch_size; ++b) {
-        cout << "Batch " << b << endl;
+        // cout << "Batch " << b << endl;
         for (int h = 0; h < num_heads; ++h) {
-            cout << "Head " << h << endl;
+            // cout << "Head " << h << endl;
             for (int i = 0; i < rows; ++i) {
                 for (int j = 0; j < cols; ++j) {
                     C[b][h][i][j] = 0.0;
@@ -37,7 +38,7 @@ void matrix_multiply(float**** A, float**** B, float**** C, int batch_size, int 
                         // cout << "B[" << b << "][" << h << "][" << k << "][" << j << "] = " << B[b][h][k][j] << endl;
                         C[b][h][i][j] += A[b][h][i][k] * B[b][h][k][j];
                     }
-                    cout << "C[" << b << "][" << h << "][" << i << "][" << j << "] = " << C[b][h][i][j] << endl;
+                    // cout << "C[" << b << "][" << h << "][" << i << "][" << j << "] = " << C[b][h][i][j] << endl;
                 }
             }
         }
@@ -46,7 +47,7 @@ void matrix_multiply(float**** A, float**** B, float**** C, int batch_size, int 
 
 void scaled_dot_product_attention(float**** query, float**** key, float**** value, float**** output, int batch_size, int num_heads, int L, int S, int D, float**** attn_mask = nullptr, float dropout_p = 0.1, float scale = -1.0, bool enable_gqa = false) {
     float scale_factor = (scale == -1.0) ? 1.0 / sqrt(D) : scale;
-    cout << "Scale factor: " << scale_factor << endl;
+    // cout << "Scale factor: " << scale_factor << endl;
 
     float**** attn_bias = new float***[batch_size];
     for (int b = 0; b < batch_size; ++b) {
@@ -62,7 +63,7 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
         }
     }
 
-    cout << "attn_bias created" << endl;
+    // cout << "attn_bias created" << endl;
 
     if (attn_mask != nullptr) {
         for (int b = 0; b < batch_size; ++b) {
@@ -89,7 +90,7 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
         }
     }
 
-    cout << "start mm" << endl;
+    // cout << "start mm" << endl;
 
     float**** key_transposed = new float***[batch_size];
     for (int b = 0; b < batch_size; ++b) {
@@ -109,7 +110,7 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
 
     matrix_multiply(query, key_transposed, attn_weight, batch_size, num_heads, L, S, D);
 
-    cout << "end mm" << endl;
+    // cout << "end mm" << endl;
 
     for (int b = 0; b < batch_size; ++b) {
         for (int h = 0; h < num_heads; ++h) {
@@ -117,7 +118,7 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
                 for (int j = 0; j < S; ++j) {
                     attn_weight[b][h][i][j] *= scale_factor;
                     attn_weight[b][h][i][j] += attn_bias[b][h][i][j];
-                    cout << "attn_weight[" << b << "][" << h << "][" << i << "][" << j << "] = " << attn_weight[b][h][i][j] << endl;
+                    // cout << "attn_weight[" << b << "][" << h << "][" << i << "][" << j << "] = " << attn_weight[b][h][i][j] << endl;
                 }
             }
         }
@@ -133,17 +134,17 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
                 }
                 for (int j = 0; j < S; ++j) {
                     attn_weight[b][h][i][j] /= sum;
-                    cout << "Normalized attn_weight[" << b << "][" << h << "][" << i << "][" << j << "] = " << attn_weight[b][h][i][j] << endl;
+                    // cout << "Normalized attn_weight[" << b << "][" << h << "][" << i << "][" << j << "] = " << attn_weight[b][h][i][j] << endl;
                 }
             }
         }
     }
 
-    cout << "Attention weights mm value start" << endl;
+    // cout << "Attention weights mm value start" << endl;
 
     matrix_multiply(attn_weight, value, output, batch_size, num_heads, L, D, S);
 
-    cout << "Attention weights mm value end" << endl;
+    // cout << "Attention weights mm value end" << endl;
     // Free allocated memory
     for (int b = 0; b < batch_size; ++b) {
         for (int h = 0; h < num_heads; ++h) {
@@ -173,11 +174,11 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
 }
 
 int main() {
-    int batch_size = 1;
+    int batch_size = 64;
     int num_heads = 12;
-    int L = 8;
-    int S = 8;
-    int D = 64;
+    int L = 64;
+    int S = 64;
+    int D = 1024;
 
     float**** query = new float***[batch_size];
     float**** key = new float***[batch_size];
@@ -208,23 +209,29 @@ int main() {
         }
     }
 
-    cout << "query[0][0][0][63]" << query[0][0][0][63] << endl;
+    // cout << "query[0][0][0][63]" << query[0][0][0][63] << endl;
 
-    cout << "start" << endl;
+    // cout << "start" << endl;
+    struct timespec start, stop; 
+    double time;
 
+	if( clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime");}
     scaled_dot_product_attention(query, key, value, output, batch_size, num_heads, L, S, D);
+    if( clock_gettime(CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}		
+	time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
 
-    return 0;
+    cout << "Time taken for scaled_dot_product_attention: " << time << " seconds" << endl;
 
-    for (int b = 0; b < batch_size; ++b) {
-        for (int h = 0; h < num_heads; ++h) {
-            for (int i = 0; i < L; ++i) {
-                for (int j = 0; j < D; ++j) {
-                    cout << "output[" << b << "][" << h << "][" << i << "][" << j << "] = " << output[b][h][i][j] << endl;
-                }
-            }
-        }
-    }
+
+    // for (int b = 0; b < batch_size; ++b) {
+    //     for (int h = 0; h < num_heads; ++h) {
+    //         for (int i = 0; i < L; ++i) {
+    //             for (int j = 0; j < D; ++j) {
+    //                 cout << "output[" << b << "][" << h << "][" << i << "][" << j << "] = " << output[b][h][i][j] << endl;
+    //             }
+    //         }
+    //     }
+    // }
 
     // Free allocated memory
     for (int b = 0; b < batch_size; ++b) {
