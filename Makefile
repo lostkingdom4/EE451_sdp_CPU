@@ -32,6 +32,14 @@ sdp_mm_parallel: sdp_mm_parallel.cpp
 run_parallel: sdp_mm_parallel
 	./sdp_mm_parallel
 
+bmm: sdp_bmm
+
+sdp_bmm: sdp_bmm.cpp
+	$(CXX) $(CXXFLAGS) -fopenmp -o sdp_bmm sdp_bmm.cpp
+
+run_bmm: sdp_bmm
+	./sdp_bmm
+
 
 # Clean up the build files
 clean:

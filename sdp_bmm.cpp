@@ -25,30 +25,21 @@ void transpose(float**** matrix, float**** matrix_transposed, int batch_size, in
 }
 
 void matrix_multiply(float**** A, float**** B, float**** C, int batch_size, int num_heads, int rows, int cols, int inner_dim) {
-    #pragma omp parallel for collapse(4)
-    for (int b = 0; b < batch_size; ++b) {
-        for (int h = 0; h < num_heads; ++h) {
-            for (int i = 0; i < rows; ++i) {
-                for (int j = 0; j < cols; ++j) {
-                    C[b][h][i][j] = 0.0;
-                    for (int k = 0; k < inner_dim; ++k) {
-                        C[b][h][i][j] += A[b][h][i][k] * B[b][h][k][j];
-                    }
-                }
-            }
-        }
-    }
-}
+    int block_size = 16; // You can adjust the block size for better performance
 
-void matrix_multiply_T(float**** A, float**** BT, float**** C, int batch_size, int num_heads, int rows, int cols, int inner_dim) {
     #pragma omp parallel for collapse(4)
     for (int b = 0; b < batch_size; ++b) {
         for (int h = 0; h < num_heads; ++h) {
-            for (int i = 0; i < rows; ++i) {
-                for (int j = 0; j < cols; ++j) {
-                    C[b][h][i][j] = 0.0;
-                    for (int k = 0; k < inner_dim; ++k) {
-                        C[b][h][i][j] += A[b][h][i][k] * BT[b][h][j][k];
+            for (int i = 0; i < rows; i += block_size) {
+                for (int j = 0; j < cols; j += block_size) {
+                    for (int k = 0; k < inner_dim; k += block_size) {
+                        for (int ii = i; ii < min(i + block_size, rows); ++ii) {
+                            for (int jj = j; jj < min(j + block_size, cols); ++jj) {
+                                for (int kk = k; kk < min(k + block_size, inner_dim); ++kk) {
+                                    C[b][h][ii][jj] += A[b][h][ii][kk] * B[b][h][kk][jj];
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -95,6 +86,9 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
             attn_weight[b][h] = new float*[L];
             for (int i = 0; i < L; ++i) {
                 attn_weight[b][h][i] = new float[S];
+                for (int j = 0; j < S; ++j) {
+                    attn_weight[b][h][i][j] = 0.0;
+                }
             }
         }
     }
@@ -115,9 +109,7 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
 
     transpose(key, key_transposed, batch_size, num_heads, L, D);
 
-    // matrix_multiply(query, key_transposed, attn_weight, batch_size, num_heads, L, S, D);
-    matrix_multiply_T(query, key, attn_weight, batch_size, num_heads, L, S, D);
-
+    matrix_multiply(query, key_transposed, attn_weight, batch_size, num_heads, L, S, D);
 
     #pragma omp parallel for collapse(4)
     for (int b = 0; b < batch_size; ++b) {
@@ -135,15 +127,9 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
     for (int b = 0; b < batch_size; ++b) {
         for (int h = 0; h < num_heads; ++h) {
             for (int i = 0; i < L; ++i) {
-                float max_val = -numeric_limits<float>::infinity();
-                for (int j = 0; j < S; ++j) {
-                    if (attn_weight[b][h][i][j] > max_val) {
-                        max_val = attn_weight[b][h][i][j];
-                    }
-                }
                 float sum = 0.0;
                 for (int j = 0; j < S; ++j) {
-                    attn_weight[b][h][i][j] = exp(attn_weight[b][h][i][j] - max_val);
+                    attn_weight[b][h][i][j] = exp(attn_weight[b][h][i][j]);
                     sum += attn_weight[b][h][i][j];
                 }
                 for (int j = 0; j < S; ++j) {
