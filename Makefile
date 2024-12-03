@@ -16,6 +16,13 @@ SRC = sdp_serial.cpp
 all: $(TARGET) run
 
 # Compile the source file into an executable
+$(TARGET): $(SRC)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRC)
+
+# Run the executable
+run: $(TARGET)
+	./$(TARGET)
+
 # Compile and run sdp_mm_parallel.cpp
 parallel: sdp_mm_parallel
 
@@ -25,12 +32,6 @@ sdp_mm_parallel: sdp_mm_parallel.cpp
 run_parallel: sdp_mm_parallel
 	./sdp_mm_parallel
 
-$(TARGET): $(SRC)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRC)
-
-# Run the executable
-run: $(TARGET)
-	./$(TARGET)
 
 # Clean up the build files
 clean:

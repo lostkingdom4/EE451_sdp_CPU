@@ -24,29 +24,6 @@ void transpose(float**** matrix, float**** matrix_transposed, int batch_size, in
 }
 
 void matrix_multiply(float**** A, float**** B, float**** C, int batch_size, int num_heads, int rows, int cols, int inner_dim) {
-    // cout << rows << " " << cols << " " << inner_dim << endl;
-    for (int b = 0; b < batch_size; ++b) {
-        // cout << "Batch " << b << endl;
-        for (int h = 0; h < num_heads; ++h) {
-            // cout << "Head " << h << endl;
-            for (int i = 0; i < rows; ++i) {
-                for (int j = 0; j < cols; ++j) {
-                    C[b][h][i][j] = 0.0;
-                    // cout << "C[" << b << "][" << h << "][" << i << "][" << j << "] = " << C[b][h][i][j] << endl;
-                    for (int k = 0; k < inner_dim; ++k) {
-                        // cout << "k = " << k << endl;
-                        // cout << "A[" << b << "][" << h << "][" << i << "][" << k << "] = " << A[b][h][i][k] << endl;
-                        // cout << "B[" << b << "][" << h << "][" << k << "][" << j << "] = " << B[b][h][k][j] << endl;
-                        C[b][h][i][j] += A[b][h][i][k] * B[b][h][k][j];
-                    }
-                    // cout << "C[" << b << "][" << h << "][" << i << "][" << j << "] = " << C[b][h][i][j] << endl;
-                }
-            }
-        }
-    }
-}
-
-void matrix_multiply(float**** A, float**** B, float**** C, int batch_size, int num_heads, int rows, int cols, int inner_dim) {
     #pragma omp parallel for collapse(4)
     for (int b = 0; b < batch_size; ++b) {
         for (int h = 0; h < num_heads; ++h) {
@@ -184,6 +161,9 @@ int main() {
 
     int num_procs = omp_get_num_procs();
     cout << "Number of processor cores: " << num_procs << endl;
+
+    omp_set_num_threads(4);
+
 
 
     int batch_size = 64;
