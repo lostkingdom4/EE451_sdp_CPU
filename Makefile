@@ -40,7 +40,10 @@ sdp_bmm: sdp_bmm.cpp
 run_bmm: sdp_bmm
 	./sdp_bmm
 
-
+sdp_online_softmax: sdp_online_softmax.cpp
+	$(CXX) $(CXXFLAGS) -fopenmp -o sdp_online_softmax sdp_online_softmax.cpp
+	./sdp_online_softmax
+	
 # Clean up the build files
 clean:
 	rm -f $(TARGET)

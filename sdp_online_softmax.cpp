@@ -143,11 +143,9 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
                     if (attn_weight[b][h][i][j] > max_val) {
                         max_val = attn_weight[b][h][i][j];
                     }
-                    sum = sum * attn_weight[b][h][i][j];
-                }
-                for (int j = 0; j < S; ++j) {
-                    attn_weight[b][h][i][j] = exp(attn_weight[b][h][i][j] - max_val);
-                    sum += attn_weight[b][h][i][j];
+                    sum = sum * exp(pre_max - max_val) + exp(attn_weight[b][h][i][j] - max_val);
+                    pre_max = max_val;
+
                 }
                 for (int j = 0; j < S; ++j) {
                     attn_weight[b][h][i][j] /= sum;
