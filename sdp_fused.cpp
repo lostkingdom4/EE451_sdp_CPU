@@ -122,7 +122,7 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
                     pre_max = max_val;
                 }
                 for (int j = 0; j < S; ++j) {
-                    attn_weight[b][h][i][j] /= sum;
+                    attn_weight[b][h][i][j] = exp(attn_weight[b][h][i][j] - max_val)/ sum;
                 }
             }
         }
@@ -130,6 +130,20 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
 
     matrix_multiply(attn_weight, value, output, batch_size, num_heads, L, D, S);
 
+
+    // #pragma omp parallel for collapse(4)
+    // for (int b = 0; b < batch_size; ++b) {
+    //     for (int h = 0; h < num_heads; ++h) {
+    //         for (int i = 0; i < L; ++i) {
+    //             for (int j = 0; j < S; ++j) {
+    //                 output[b][h][i][j] = 0.0;
+    //                 for (int k = 0; k < D; ++k) {
+    //                     output[b][h][i][j] += attn_weight[b][h][i][k] * value[b][h][k][j];
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
     for (int b = 0; b < batch_size; ++b) {
         for (int h = 0; h < num_heads; ++h) {
             for (int i = 0; i < L; ++i) {
@@ -158,8 +172,8 @@ int main() {
 
     int batch_size = 64;
     int num_heads = 12;
-    int L = 64;
-    int S = 64;
+    int L = 256;
+    int S = 256;
     int D = 1024;
 
     float**** query = new float***[batch_size];
