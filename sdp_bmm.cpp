@@ -174,20 +174,17 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
     delete[] key_transposed;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc != 6) {
+        cerr << "Usage: " << argv[0] << " <batch_size> <num_heads> <L> <S> <D>" << endl;
+        return 1;
+    }
 
-    int num_procs = omp_get_num_procs();
-    cout << "Number of processor cores: " << num_procs << endl;
-
-    omp_set_num_threads(4);
-
-
-
-    int batch_size = 64;
-    int num_heads = 12;
-    int L = 64;
-    int S = 64;
-    int D = 1024;
+    int batch_size = atoi(argv[1]);
+    int num_heads = atoi(argv[2]);
+    int L = atoi(argv[3]);
+    int S = atoi(argv[4]);
+    int D = atoi(argv[5]);
 
     float**** query = new float***[batch_size];
     float**** key = new float***[batch_size];

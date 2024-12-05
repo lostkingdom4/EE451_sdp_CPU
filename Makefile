@@ -12,16 +12,28 @@ TARGET = sdp_serial
 # Source file
 SRC = sdp_serial.cpp
 
+# Arguments
+arg1 = 1
+arg2 = 12
+arg3 = 64
+arg4 = 64
+arg5 = 1024
+
 # Default target
-all: $(TARGET) run
+all: $(TARGET) sdp_mm_parallel sdp_bmm sdp_online_softmax sdp_fused
 
 # Compile the source file into an executable
 $(TARGET): $(SRC)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRC)
+	
 
 # Run the executable
-run: $(TARGET)
-	./$(TARGET)
+run: $(TARGET) sdp_mm_parallel sdp_bmm sdp_online_softmax sdp_fused
+	./$(TARGET) $(arg1) $(arg2) $(arg3) $(arg4) $(arg5)
+	./sdp_mm_parallel $(arg1) $(arg2) $(arg3) $(arg4) $(arg5)
+	./sdp_bmm $(arg1) $(arg2) $(arg3) $(arg4) $(arg5)
+	./sdp_online_softmax $(arg1) $(arg2) $(arg3) $(arg4) $(arg5)
+	./sdp_fused $(arg1) $(arg2) $(arg3) $(arg4) $(arg5)
 
 # Compile and run sdp_mm_parallel.cpp
 parallel: sdp_mm_parallel
@@ -42,11 +54,9 @@ run_bmm: sdp_bmm
 
 sdp_online_softmax: sdp_online_softmax.cpp
 	$(CXX) $(CXXFLAGS) -fopenmp -o sdp_online_softmax sdp_online_softmax.cpp
-	./sdp_online_softmax
 
 sdp_fused: sdp_fused.cpp
 	$(CXX) $(CXXFLAGS) -fopenmp -o sdp_fused sdp_fused.cpp
-	./sdp_fused
 
 # Clean up the build files
 clean:

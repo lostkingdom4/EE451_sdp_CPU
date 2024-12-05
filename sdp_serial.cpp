@@ -178,12 +178,17 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
     delete[] key_transposed;
 }
 
-int main() {
-    int batch_size = 64;
-    int num_heads = 12;
-    int L = 64;
-    int S = 64;
-    int D = 1024;
+int main(int argc, char* argv[]) {
+    if (argc != 6) {
+        cerr << "Usage: " << argv[0] << " <batch_size> <num_heads> <L> <S> <D>" << endl;
+        return 1;
+    }
+
+    int batch_size = atoi(argv[1]);
+    int num_heads = atoi(argv[2]);
+    int L = atoi(argv[3]);
+    int S = atoi(argv[4]);
+    int D = atoi(argv[5]);
 
     float**** query = new float***[batch_size];
     float**** key = new float***[batch_size];
@@ -214,29 +219,15 @@ int main() {
         }
     }
 
-    // cout << "query[0][0][0][63]" << query[0][0][0][63] << endl;
-
-    // cout << "start" << endl;
     struct timespec start, stop; 
     double time;
 
-	if( clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime");}
+    if (clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime"); }
     scaled_dot_product_attention(query, key, value, output, batch_size, num_heads, L, S, D);
-    if( clock_gettime(CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}		
-	time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
+    if (clock_gettime(CLOCK_REALTIME, &stop) == -1) { perror("clock gettime"); }		
+    time = (stop.tv_sec - start.tv_sec) + (double)(stop.tv_nsec - start.tv_nsec) / 1e9;
 
     cout << "Time taken for scaled_dot_product_attention: " << time << " seconds" << endl;
-
-
-    // for (int b = 0; b < batch_size; ++b) {
-    //     for (int h = 0; h < num_heads; ++h) {
-    //         for (int i = 0; i < L; ++i) {
-    //             for (int j = 0; j < D; ++j) {
-    //                 cout << "output[" << b << "][" << h << "][" << i << "][" << j << "] = " << output[b][h][i][j] << endl;
-    //             }
-    //         }
-    //     }
-    // }
 
     // Free allocated memory
     for (int b = 0; b < batch_size; ++b) {

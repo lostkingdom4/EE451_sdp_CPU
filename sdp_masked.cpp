@@ -7,21 +7,16 @@
 using namespace std;
 
 void transpose(float**** matrix, float**** matrix_transposed, int batch_size, int num_heads, int rows, int cols) {
-    // cout << "Transposing matrices with rows: " << rows << ", cols: " << cols << endl;
     #pragma omp parallel for collapse(4)
     for (int b = 0; b < batch_size; ++b) {
         for (int h = 0; h < num_heads; ++h) {
             for (int i = 0; i < rows; ++i) {
                 for (int j = 0; j < cols; ++j) {
-                    // Validate indices and assignment
-                    // cout << "matrix[" << b << "][" << h << "][" << i << "][" << j << "] = " << matrix[b][h][i][j] << endl;
-                    // cout << "matrix_transposed[" << b << "][" << h << "][" << j << "][" << i << "] = " << matrix_transposed[b][h][j][i] << endl;
                     matrix_transposed[b][h][j][i] = matrix[b][h][i][j];
                 }
             }
         }
     }
-    // cout << "Transpose completed successfully." << endl;
 }
 
 void matrix_multiply(float**** A, float**** B, float**** C, int batch_size, int num_heads, int rows, int cols, int inner_dim) {
@@ -99,6 +94,19 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
         }
     }
 
+    matrix_multiply_T(query, key, attn_weight, batch_size, num_heads, L, S, D);
+
+    #pragma omp parallel for collapse(4)
+    for (int b = 0; b < batch_size; ++b) {
+        for (int h = 0; h < num_heads; ++h) {
+            for (int i = 0; i < L; ++i) {
+                for (int j = 0; j < S; ++j) {
+                    attn_weight[b][h][i][j] *= scale_factor;
+                    attn_weight[b][h][i][j] += attn_bias[b][h][i][j];
+                }
+            }
+        }
+    }
 
     #pragma omp parallel for collapse(3)
     for (int b = 0; b < batch_size; ++b) {
@@ -109,12 +117,6 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
 
                 float sum = 0.0;
                 for (int j = 0; j < S; ++j) {
-                    attn_weight[b][h][i][j] = 0.0;
-                    for (int k = 0; k < D; ++k) {
-                        attn_weight[b][h][i][j] += query[b][h][i][k] * key[b][h][j][k];
-                    }
-                    attn_weight[b][h][i][j] *= scale_factor;
-                    attn_weight[b][h][i][j] += attn_bias[b][h][i][j];
                     if (attn_weight[b][h][i][j] > max_val) {
                         max_val = attn_weight[b][h][i][j];
                     }
@@ -122,7 +124,7 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
                     pre_max = max_val;
                 }
                 for (int j = 0; j < S; ++j) {
-                    attn_weight[b][h][i][j] = exp(attn_weight[b][h][i][j] - max_val)/ sum;
+                    attn_weight[b][h][i][j] = exp(attn_weight[b][h][i][j] - max_val) / sum;
                 }
             }
         }
@@ -130,20 +132,6 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
 
     matrix_multiply(attn_weight, value, output, batch_size, num_heads, L, D, S);
 
-
-    // #pragma omp parallel for collapse(4)
-    // for (int b = 0; b < batch_size; ++b) {
-    //     for (int h = 0; h < num_heads; ++h) {
-    //         for (int i = 0; i < L; ++i) {
-    //             for (int j = 0; j < S; ++j) {
-    //                 output[b][h][i][j] = 0.0;
-    //                 for (int k = 0; k < D; ++k) {
-    //                     output[b][h][i][j] += attn_weight[b][h][i][k] * value[b][h][k][j];
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
     for (int b = 0; b < batch_size; ++b) {
         for (int h = 0; h < num_heads; ++h) {
             for (int i = 0; i < L; ++i) {
@@ -158,7 +146,6 @@ void scaled_dot_product_attention(float**** query, float**** key, float**** valu
     }
     delete[] attn_bias;
     delete[] attn_weight;
-
 }
 
 int main(int argc, char* argv[]) {
@@ -172,59 +159,52 @@ int main(int argc, char* argv[]) {
     int L = atoi(argv[3]);
     int S = atoi(argv[4]);
     int D = atoi(argv[5]);
-    
+
     float**** query = new float***[batch_size];
     float**** key = new float***[batch_size];
     float**** value = new float***[batch_size];
     float**** output = new float***[batch_size];
+    float**** attn_mask = new float***[batch_size];
 
     for (int b = 0; b < batch_size; ++b) {
         query[b] = new float**[num_heads];
         key[b] = new float**[num_heads];
         value[b] = new float**[num_heads];
         output[b] = new float**[num_heads];
+        attn_mask[b] = new float**[num_heads];
         for (int h = 0; h < num_heads; ++h) {
             query[b][h] = new float*[L];
             key[b][h] = new float*[L];
             value[b][h] = new float*[L];
             output[b][h] = new float*[L];
+            attn_mask[b][h] = new float*[L];
             for (int i = 0; i < L; ++i) {
                 query[b][h][i] = new float[D];
                 key[b][h][i] = new float[D];
                 value[b][h][i] = new float[D];
                 output[b][h][i] = new float[D];
+                attn_mask[b][h][i] = new float[S];
                 for (int j = 0; j < D; ++j) {
                     query[b][h][i][j] = 1.0;
                     key[b][h][i][j] = 1.0;
                     value[b][h][i][j] = 1.0;
                 }
+                for (int j = 0; j < S; ++j) {
+                    attn_mask[b][h][i][j] = 1.0; // Set mask to 1.0 (no masking) by default
+                }
             }
         }
     }
 
-    // cout << "query[0][0][0][63]" << query[0][0][0][63] << endl;
-
-    // cout << "start" << endl;
     struct timespec start, stop; 
     double time;
 
-	if( clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime");}
-    scaled_dot_product_attention(query, key, value, output, batch_size, num_heads, L, S, D);
-    if( clock_gettime(CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}		
-	time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
+    if (clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime"); }
+    scaled_dot_product_attention(query, key, value, output, batch_size, num_heads, L, S, D, attn_mask);
+    if (clock_gettime(CLOCK_REALTIME, &stop) == -1) { perror("clock gettime"); }		
+    time = (stop.tv_sec - start.tv_sec) + (double)(stop.tv_nsec - start.tv_nsec) / 1e9;
 
     cout << "Time taken for scaled_dot_product_attention: " << time << " seconds" << endl;
-
-
-    // for (int b = 0; b < batch_size; ++b) {
-    //     for (int h = 0; h < num_heads; ++h) {
-    //         for (int i = 0; i < L; ++i) {
-    //             for (int j = 0; j < D; ++j) {
-    //                 cout << "output[" << b << "][" << h << "][" << i << "][" << j << "] = " << output[b][h][i][j] << endl;
-    //             }
-    //         }
-    //     }
-    // }
 
     // Free allocated memory
     for (int b = 0; b < batch_size; ++b) {
@@ -234,21 +214,25 @@ int main(int argc, char* argv[]) {
                 delete[] key[b][h][i];
                 delete[] value[b][h][i];
                 delete[] output[b][h][i];
+                delete[] attn_mask[b][h][i];
             }
             delete[] query[b][h];
             delete[] key[b][h];
             delete[] value[b][h];
             delete[] output[b][h];
+            delete[] attn_mask[b][h];
         }
         delete[] query[b];
         delete[] key[b];
         delete[] value[b];
         delete[] output[b];
+        delete[] attn_mask[b];
     }
     delete[] query;
     delete[] key;
     delete[] value;
     delete[] output;
+    delete[] attn_mask;
 
     return 0;
 }
