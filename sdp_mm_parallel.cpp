@@ -188,6 +188,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    omp_set_num_threads(4);
+
     int batch_size = atoi(argv[1]);
     int num_heads = atoi(argv[2]);
     int L = atoi(argv[3]);

@@ -167,12 +167,14 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    omp_set_num_threads(4);
+
     int batch_size = atoi(argv[1]);
     int num_heads = atoi(argv[2]);
     int L = atoi(argv[3]);
     int S = atoi(argv[4]);
     int D = atoi(argv[5]);
-    
+
     float**** query = new float***[batch_size];
     float**** key = new float***[batch_size];
     float**** value = new float***[batch_size];

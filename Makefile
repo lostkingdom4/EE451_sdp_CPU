@@ -17,7 +17,7 @@ arg1 = 1
 arg2 = 12
 arg3 = 64
 arg4 = 64
-arg5 = 1024
+arg5 = 4096
 
 # Default target
 all: $(TARGET) sdp_mm_parallel sdp_bmm sdp_online_softmax sdp_fused
